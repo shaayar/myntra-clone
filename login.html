@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Myntra</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .is-invalid {
+            border-color: #dc3545 !important;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23dc3545'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23dc3545' stroke='none'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        }
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #dc3545;
+        }
+        .was-validated .form-control:invalid ~ .invalid-feedback,
+        .form-control.is-invalid ~ .invalid-feedback {
+            display: block;
+        }
+        .btn .spinner-border {
+            margin-right: 0.5rem;
+        }
+        .btn .button-text {
+            display: inline-block;
+        }
+        .btn.is-loading .button-text {
+            visibility: hidden;
+        }
+        .btn.is-loading .spinner-border {
+            display: inline-block !important;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+    <div id="site-header"></div>
+    
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow">
+                    <div class="card-body p-4">
+                        <h2 class="text-center mb-4">Login</h2>
+                        <div id="login-error" class="alert alert-danger d-none"></div>
+                        
+                        <form id="login-form" class="needs-validation" novalidate>
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email address</label>
+                                <input type="email" class="form-control" id="email" 
+                                       pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$" 
+                                       required>
+                                <div class="invalid-feedback" id="email-error">
+                                    Please enter a valid email address.
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" 
+                                       minlength="6" 
+                                       required>
+                                <div class="invalid-feedback" id="password-error">
+                                    Password must be at least 6 characters long.
+                                </div>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" id="rememberMe">
+                                <label class="form-check-label" for="rememberMe">Remember me</label>
+                                <a href="#" class="float-end text-decoration-none" id="forgot-password">Forgot password?</a>
+                            </div>
+                            <button type="submit" class="btn btn-danger w-100 py-2" id="login-button">
+                                <span class="button-text">Login</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                            </button>
+                        </form>
+                        
+                        <div class="text-center mt-3">
+                            <p class="mb-0">New to Myntra? <a href="signup.html">Create an account</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // In login.html, add this at the start of the DOMContentLoaded handler
+            if (window.Auth && window.Auth.isUserLoggedIn()) {
+                window.location.href = window.Auth.hasCompleteProfile() ? '/' : '/profile.html';
+                return;
+            }
+            const form = document.getElementById('login-form');
+            const errorEl = document.getElementById('login-error');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const rememberMeCheckbox = document.getElementById('rememberMe');
+            const loginButton = document.getElementById('login-button');
+            const buttonText = loginButton.querySelector('.button-text');
+            const spinner = loginButton.querySelector('.spinner-border');
+
+            // Real-time validation
+            emailInput.addEventListener('input', validateEmail);
+            passwordInput.addEventListener('input', validatePassword);
+            
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Validate all fields
+                const isEmailValid = validateEmail();
+                const isPasswordValid = validatePassword();
+                
+                if (!isEmailValid || !isPasswordValid) {
+                    form.classList.add('was-validated');
+                    return;
+                }
+                
+                const email = emailInput.value.trim();
+                const password = passwordInput.value;
+                
+                // Set loading state
+                setLoading(true);
+                
+                // Simulate API call with timeout (replace with actual API call)
+                setTimeout(() => {
+                    try {
+                        // Attempt to log in with remember me option
+                        if (Auth.loginUser(email, password, rememberMeCheckbox.checked)) {
+                            // Get the redirect URL from sessionStorage or default to profile page
+                            let redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+                            
+                            // If no redirect URL was stored, go to profile if incomplete, otherwise home
+                            if (!redirectUrl) {
+                                redirectUrl = Auth.hasCompleteProfile() ? '/' : '/profile.html';
+                            } else {
+                                // Remove the redirect URL from session storage after getting it
+                                sessionStorage.removeItem('redirectAfterLogin');
+                            }
+                            
+                            // Show success message briefly before redirect
+                            setLoading(false, 'Success!');
+                            setTimeout(() => {
+                                window.location.href = redirectUrl;
+                            }, 500);
+                        } else {
+                            throw new Error('Invalid email or password');
+                        }
+                    } catch (error) {
+                        setLoading(false);
+                        errorEl.textContent = error.message || 'Login failed. Please try again.';
+                        errorEl.classList.remove('d-none');
+                        
+                        // Scroll to the error message
+                        errorEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 1000); // Simulate network delay
+            });
+            
+            function validateEmail() {
+                const email = emailInput.value.trim();
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                const isValid = emailRegex.test(email);
+                
+                if (!email) {
+                    document.getElementById('email-error').textContent = 'Email is required.';
+                    emailInput.setCustomValidity('Email is required.');
+                } else if (!isValid) {
+                    document.getElementById('email-error').textContent = 'Please enter a valid email address.';
+                    emailInput.setCustomValidity('Please enter a valid email address.');
+                } else {
+                    emailInput.setCustomValidity('');
+                }
+                
+                emailInput.classList.toggle('is-invalid', !isValid && email);
+                return isValid;
+            }
+            
+            function validatePassword() {
+                const password = passwordInput.value;
+                const isValid = password.length >= 6;
+                
+                if (!password) {
+                    document.getElementById('password-error').textContent = 'Password is required.';
+                    passwordInput.setCustomValidity('Password is required.');
+                } else if (!isValid) {
+                    document.getElementById('password-error').textContent = 'Password must be at least 6 characters long.';
+                    passwordInput.setCustomValidity('Password must be at least 6 characters long.');
+                } else {
+                    passwordInput.setCustomValidity('');
+                }
+                
+                passwordInput.classList.toggle('is-invalid', !isValid && password);
+                return isValid;
+            }
+            
+            // Set loading state for the login button
+            function setLoading(isLoading, text = 'Logging in...') {
+                const button = loginButton;
+                const textEl = button.querySelector('.button-text');
+                const spinner = button.querySelector('.spinner-border');
+                
+                if (isLoading) {
+                    button.disabled = true;
+                    button.classList.add('is-loading');
+                    textEl.textContent = text;
+                    spinner.classList.remove('d-none');
+                } else {
+                    button.disabled = false;
+                    button.classList.remove('is-loading');
+                    textEl.textContent = text || 'Login';
+                    spinner.classList.add('d-none');
+                }
+            }
+            
+            // Forgot password handler
+            document.getElementById('forgot-password')?.addEventListener('click', function(e) {
+                e.preventDefault();
+                const email = emailInput.value.trim();
+                if (email && validateEmail()) {
+                    // In a real app, you would send a password reset email
+                    setLoading(true, 'Sending reset link...');
+                    setTimeout(() => {
+                        setLoading(false, 'Login');
+                        alert(`Password reset link has been sent to ${email}`);
+                    }, 1500);
+                } else {
+                    errorEl.textContent = 'Please enter a valid email address to reset your password.';
+                    errorEl.classList.remove('d-none');
+                    emailInput.focus();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Products | Myntra</title>
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous"/>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- header will be injected here by script.js -->
+    <div id="site-header"></div>
+
+    <section>
+        <div class="container-fluid p-4">
+            <p>Home / Clothing / Shirts / <b>Men's Casual Wear</b></p>
+            <div class="my-3">
+                <div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3 product-grid-row"></div>
+            </div>
+            </div>
+    </section>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"
+    ></script>
+    <script>
+      // Products Showcase page
+        const productsData = [
+        {
+            id: 1,
+            link: "detail.html",
+            brand: "Roadster",
+            name: "Chambray Casual Shirt",
+            rating: "4.1",
+            reviews: "21.5k",
+            currentPrice: 460,
+            originalPrice: 1499,
+            imageURL:
+            "https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_210,c_limit,fl_progressive/assets/images/15557590/2022/2/18/a88d594a-0184-4042-baad-01c2d7874cec1645166286136-Roadster-Men-Shirts-4091645166285596-1.jpg",
+        },
+        {
+            id: 2,
+            link: "detail.html",
+            brand: "Mast & Harbour",
+            name: "Men Slim Fit Casual Shirt",
+            rating: "4.3",
+            reviews: "41.4k",
+            currentPrice: 465,
+            originalPrice: 2099,
+            imageURL:
+            "https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_210,c_limit,fl_progressive/assets/images/2024/AUGUST/12/iSJz5Njt_c1194cf91f2345f0aa27b4c49e12e0e3.jpg",
+        },
+        {
+            id: 3,
+            link: "detail.html",
+            brand: "HERE&NOW",
+            name: "Slim Fit Opaque Casual Shirt",
+            rating: "4.3",
+            reviews: "3.5k",
+            currentPrice: 589,
+            originalPrice: 1999,
+            imageURL:
+            "https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_210,c_limit,fl_progressive/assets/images/30246784/2024/7/19/d74e9e77-d331-4f51-a795-b2add5a68b0a1721378547061HERENOWMenSlimFitFloralOpaquePrintedCasualShirt1.jpg"
+        },
+        {
+            id: 4,
+            link: "detail.html",
+            brand: "Roadster",
+            name: "Cotton Casual Shirt",
+            rating: "4.2",
+            reviews: "48.5k",
+            currentPrice: 452,
+            originalPrice: 999,
+            imageURL:
+                "https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_210,c_limit,fl_progressive/assets/images/11904108/2020/7/14/869203dc-200a-4284-9d2d-a06fd5ea582d1594707585600-Roadster-Men-Shirts-1041594707583386-1.jpg",
+        },
+        {
+            id: 5,
+            link: "#",
+            brand: "H&M",
+            name: "Regular Fit Linen Shirt",
+            rating: "4.0",
+            reviews: "12.3k",
+            currentPrice: 799,
+            originalPrice: 1599,
+            imageURL: 
+                "https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_210,c_limit,fl_progressive/assets/images/24108082/2023/7/20/a25f0b74-245d-4346-923f-de5826339a301689797513270SnitchMenNavyBlueClassicSlimFitBengalStripesOpaqueStripedCas1.jpg"
+        },
+        {
+            id: 6,
+            link: "#",
+            brand: "Jack & Jones",
+            name: "Slim Fit Casual Shirt",
+            rating: "4.4",
+            reviews: "22.1k",
+            currentPrice: 999,
+            originalPrice: 2499,
+            imageURL:"https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_210,c_limit,fl_progressive/assets/images/17091614/2022/2/18/779ac019-8b8c-48f7-9c5e-b3e2fe3004b01645166457327-Men-White-Casual-Shirt-5731645166456476-1.jpg"
+        },
+        {
+            id: 7,
+            link: "#",
+            brand: "Levi's",
+            name: "Slim Fit Casual Shirt",
+            rating: "4.5",
+            reviews: "18.7k",
+            currentPrice: 1299,
+            originalPrice: 2999,
+            imageURL:
+                "https://assets.myntassets.com/f_webp,dpr_1.5,q_60,w_210,c_limit,fl_progressive/assets/images/29265888/2024/4/30/fe4c28bd-d5fb-467d-9d5e-26e3be3f7b671714470947075Shirts1.jpg"
+        }
+        ];
+
+      // Function to calculate the discount amount
+        const calculateDiscount = (original, current) => original - current;
+
+      // 1. Get the container where the grid will be inserted
+      const gridContainer = document.querySelector(".product-grid-row"); // Assuming a class is added to the main row
+
+      // 2. Map the product data to create an array of HTML strings
+        const productHTMLArray = productsData
+        .map((product) => {
+        const discountAmount = calculateDiscount(
+            product.originalPrice,
+            product.currentPrice
+            );
+
+            return `
+<div class="col">
+    <div class="card h-100 border-0">
+        <a href="${product.link}"><img src="${product.imageURL}" class="card-img-top" alt="${product.name}"></a>
+        <div class="position-absolute bottom-1 start-0 m-2 p-1 bg-dark text-white rounded opacity-75 small fw-bold">
+            ${product.rating} | ${product.reviews}
+        </div>
+        <div class="card-body p-2">
+            <h6 class="card-subtitle mb-0 text-muted">${product.brand}</h6>
+            <p class="card-text fw-bold mb-1">${product.name}</p>
+            <p class="card-text small">
+                <span class="fw-bold text-dark">Rs. ${product.currentPrice}</span> 
+                <s class="text-muted">Rs. ${product.originalPrice}</s> 
+                <span class="text-danger">(Rs. ${discountAmount} OFF)</span>
+            </p>
+            <button onclick="addToCart({
+                id: '${product.id}',
+                title: '${product.name}',
+                price: ${product.currentPrice},
+                imgSrc: '${product.imageURL}',
+                link: '${product.link}'
+            })" class="btn btn-danger btn-sm mt-2">Add to Bag</button>
+        </div>
+    </div>
+</div>
+`;
+        })
+        .join(""); // Join the array of HTML strings into one single string
+
+      // 3. Insert the combined HTML into the main grid container
+        gridContainer.innerHTML = productHTMLArray;
+    </script>
+    <script src="script.js"></script>
+    </body>
+</html>
