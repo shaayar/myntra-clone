@@ -140,13 +140,22 @@
                 <s class="text-muted">Rs. ${product.originalPrice}</s> 
                 <span class="text-danger">(Rs. ${discountAmount} OFF)</span>
             </p>
-            <button onclick="addToCart({
-                id: '${product.id}',
-                title: '${product.name}',
-                price: ${product.currentPrice},
-                imgSrc: '${product.imageURL}',
-                link: '${product.link}'
-            })" class="btn btn-danger btn-sm mt-2">Add to Bag</button>
+            <div class="d-flex gap-2">
+              <button 
+                class="add-to-bag-btn btn btn-danger btn-sm mt-2 flex-grow-1"
+                data-id="${product.id}"
+                data-title="${product.name}"
+                data-price="${product.currentPrice}"
+                data-img="${product.imageURL}"
+                data-link="${product.link}"
+              >
+                <i class="bi bi-bag-plus-fill me-1"></i> Add to Bag
+              </button>
+              <button class="btn btn-outline-secondary btn-sm mt-2" type="button">
+                <i class="bi bi-heart"></i>
+              </button>
+            </div>
+            <div id="size-error-msg-${product.id}" class="text-danger small mt-1" style="display: none;"></div>
         </div>
     </div>
 </div>

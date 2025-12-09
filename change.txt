@@ -1,0 +1,13 @@
+make custom cards of category section on index page
+footer alignment
+address confirming before confirming the order
+icons instead of image in footer
+on cart page, fix image loading 
+add similar products on details page
+add filter on product page
+fix image grid on detail page
+
+done:
+on zip code acc to the state
+display all states
+on cart page, inc/dec the quantity 

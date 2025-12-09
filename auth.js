@@ -157,6 +157,27 @@ function ensureProfileComplete(redirectUrl = '/profile.html') {
     return true;
 }
 
+// Initialize test users if they don't exist
+function initializeTestUsers() {
+    const users = getUsers();
+    const testEmail = 'test@gmail.com';
+    
+    if (!users[testEmail]) {
+        users[testEmail] = {
+            id: 'test-user-123',
+            email: testEmail,
+            password: 'abcdef', // In a real app, passwords should be hashed
+            name: 'Test User',
+            phone: '9876543210',
+            createdAt: new Date().toISOString()
+        };
+        saveUsers(users);
+    }
+}
+
+// Initialize test users when the script loads
+initializeTestUsers();
+
 // Export functions
 window.Auth = {
     isUserLoggedIn,

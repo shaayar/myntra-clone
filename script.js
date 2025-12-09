@@ -34,7 +34,7 @@ function renderHeader() {
                         </div>
                         <div class="d-flex align-items-center ms-3 gap-4">
 <div class="text-center d-none d-md-block">
-    <a href="#" class="text-decoration-none text-dark position-relative" id="profile-dropdown">
+    <a href="/profile.html" class="text-decoration-none text-dark position-relative" id="profile-dropdown">
         <div style="font-size:20px">👤</div>
         <small class="d-block">Profile</small>
         <div class="dropdown-menu dropdown-menu-end" id="profile-menu" style="display: none;">
@@ -101,37 +101,85 @@ function updateCartCount() {
 }
 
 function addToCart(product) {
-  clearError();
-  const cart = getCart();
-  // Check if size is selected
-  if (!product.size) {
-    showError("Please select a size before adding to cart.");
-    return;
-  }
-
-  // Check if product with same id and size already in cart
-  const existing = cart.find(
-    (p) => p.id === product.id && p.size === product.size
-  );
-  if (existing) {
-    if (existing.qty >= 10) {
-      showError("Maximum quantity of 10 units allowed for this product size.");
-      return;
-    } else {
-      existing.qty += 1;
-    }
-  } else {
-    cart.push(Object.assign({}, product, { qty: 1 }));
-  }
-  saveCart(cart);
-
-  // feedback
   try {
-    const badge = document.getElementById("cart-count");
-    if (badge) badge.classList.add("flash");
-    setTimeout(() => badge && badge.classList.remove("flash"), 300);
-    if (typeof showAddToast === "function") showAddToast(product);
-  } catch (e) {}
+    clearError();
+    const cart = getCart();
+    
+    // Check if size is selected
+    if (!product.size) {
+      showError("Please select a size before adding to cart.");
+      return false;
+    }
+
+    // Ensure the product has a valid image URL
+    if (!product.img && !product.imgSrc) {
+      // If neither img nor imgSrc is provided, use a placeholder
+      product.img = "https://via.placeholder.com/150";
+    } else if (product.img && !product.img.startsWith('http') && !product.img.startsWith('/')) {
+      // If img exists but doesn't start with http or /, make it an absolute path
+      product.img = '/' + product.img;
+    } else if (product.imgSrc && !product.img) {
+      // If only imgSrc exists, use it
+      product.img = product.imgSrc;
+    }
+
+    // Check if product already exists in cart with same size
+    const existingIndex = cart.findIndex(
+      (p) => p.id === product.id && p.size === product.size
+    );
+    
+    if (existingIndex >= 0) {
+      // Product exists, update quantity
+      if (cart[existingIndex].qty >= 10) {
+        showError("Maximum quantity of 10 units allowed for this product size.");
+        return false;
+      }
+      cart[existingIndex].qty += 1;
+    } else {
+      // Add new product to cart
+      cart.push({
+        ...product,
+        qty: 1,
+        addedAt: new Date().toISOString()
+      });
+    }
+    
+    // Save updated cart
+    saveCart(cart);
+
+    // Update UI feedback
+    updateCartCount();
+    
+    // Show success feedback
+    const addToBagBtn = document.getElementById("add-to-bag-btn");
+    if (addToBagBtn) {
+      const originalText = addToBagBtn.innerHTML;
+      addToBagBtn.disabled = true;
+      addToBagBtn.innerHTML = '<i class="bi bi-check-circle"></i> Added to Cart';
+      addToBagBtn.classList.add('added-to-cart');
+      
+      // Revert button state after delay
+      setTimeout(() => {
+        if (addToBagBtn) {
+          addToBagBtn.innerHTML = originalText;
+          addToBagBtn.disabled = false;
+          addToBagBtn.classList.remove('added-to-cart');
+        }
+      }, 2000);
+    }
+    
+    // Show toast notification
+    if (typeof showAddToast === "function") {
+      showAddToast(product);
+    }
+    
+    return true;
+    
+  } catch (error) {
+    console.error('Error adding to cart:', error);
+    showError("An error occurred while adding the item to your cart. Please try again.");
+    return false;
+  }
 }
 
 // Show inline error message near add to bag button
@@ -207,44 +255,102 @@ function setupSizeSelection() {
   });
 }
 
-// Hook size selection setup on DOMContentLoaded
-document.addEventListener("DOMContentLoaded", () => {
-  setupSizeSelection();
-  updateAddToBagButtonState();
-
-  // Add checkout button event listener if on cart page
-  const checkoutBtn = document.getElementById("checkout-btn");
-  if (checkoutBtn) {
-    checkoutBtn.addEventListener("click", proceedToCheckout);
-  }
-
-  const addToBagBtn = document.getElementById("add-to-bag-btn");
-  if (addToBagBtn) {
-    addToBagBtn.addEventListener("click", () => {
-      const selectedSize = getSelectedSize();
-      if (!selectedSize) {
-        showError("Please select a size before adding to cart.");
-        return;
+// Main initialization function
+function initializePage() {
+  try {
+    // Always render header and navigation first
+    renderHeader();
+    populateNav();
+    updateCartCount();
+    
+    // Initialize UI components
+    setupSizeSelection();
+    updateAddToBagButtonState();
+    
+    // Initialize add to bag button
+    const addToBagBtn = document.getElementById("add-to-bag-btn");
+    if (addToBagBtn) {
+      addToBagBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        const selectedSize = getSelectedSize();
+        if (!selectedSize) {
+          showError("Please select a size before adding to cart.");
+          return;
+        }
+        // Build product object with selected size
+        const product = {
+          id: addToBagBtn.getAttribute("data-id"),
+          title: addToBagBtn.getAttribute("data-title") || 'Product',
+          price: Number(addToBagBtn.getAttribute("data-price") || 0),
+          img: addToBagBtn.getAttribute("data-img"),
+          size: selectedSize,
+        };
+        addToCart(product);
+      });
+    }
+    
+    // Initialize cart page if on cart page
+    const cartContainer = document.getElementById("cart-container");
+    if (cartContainer) {
+      renderCartPage();
+      
+      // Initialize address modal
+      initAddressModal();
+      
+      // Set up checkout button handler
+      const checkoutBtn = document.getElementById('checkout-btn');
+      if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          
+          // Double check authentication and profile before checkout
+          if (!ensureLoggedIn()) {
+            return;
+          }
+          
+          // Show address confirmation
+          if (typeof showAddressConfirmation === 'function') {
+            showAddressConfirmation();
+          } else {
+            // Fallback if showAddressConfirmation is not defined
+            if (confirm('Proceed to checkout?')) {
+              processOrder();
+            }
+          }
+        });
       }
-      if (!isSizeInStock(selectedSize)) {
-        showError("Selected size is out of stock.");
-        return;
-      }
-      // Build product object with selected size
-      const product = {
-        id: addToBagBtn.getAttribute("data-id"),
-        title: addToBagBtn.getAttribute("data-title"),
-        price: Number(addToBagBtn.getAttribute("data-price")),
-        img: addToBagBtn.getAttribute("data-img"),
-        size: selectedSize,
-      };
-      addToCart(product);
-    });
+    }
+    
+    // Initialize carousel if it exists
+    const productCarousel = document.getElementById("productCarousel");
+    if (productCarousel && productCarousel.addEventListener) {
+      productCarousel.addEventListener("slid.bs.carousel", function (event) {
+        const activeItem = event.relatedTarget;
+        if (!activeItem) return;
+        const cards = activeItem.querySelectorAll(".card");
+        cards.forEach((card, index) => {
+          card.classList.remove("animate__fadeInUp");
+          card.style.removeProperty("animation-delay");
+          void card.offsetWidth;
+          card.classList.add("animate__fadeInUp");
+          card.style.setProperty("animation-delay", `${index * 0.2}s`);
+        });
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error initializing page:', error);
   }
+}
 
-  // Render header and populate nav so pages reuse the same header
-  renderHeader();
-  populateNav();
+// Initialize the page when DOM is fully loaded
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializePage);
+} else {
+  // DOMContentLoaded has already fired
+  initializePage();
+}
+
   // carousel listener (safe)
   const productCarousel = document.getElementById("productCarousel");
   if (productCarousel && productCarousel.addEventListener) {
@@ -266,16 +372,39 @@ document.addEventListener("DOMContentLoaded", () => {
   updateCartCount();
   renderCartPage();
 
-  // Handle profile dropdown and logout
+  // Handle add to cart buttons in product grid
   document.addEventListener('click', function(e) {
-    // Handle logout
-    if (e.target.closest('#logout-btn')) {
+    // Check if clicked element is an add-to-bag button or inside one
+    const addToBagBtn = e.target.closest('.add-to-bag-btn');
+    if (addToBagBtn && !addToBagBtn.classList.contains('added-to-cart')) {
       e.preventDefault();
-      if (window.Auth && typeof window.Auth.logoutUser === 'function') {
+      
+      // Get product data from data attributes
+      const product = {
+        id: addToBagBtn.getAttribute('data-id'),
+        title: addToBagBtn.getAttribute('data-title'),
+        price: Number(addToBagBtn.getAttribute('data-price') || 0),
+        img: addToBagBtn.getAttribute('data-img'),
+        link: addToBagBtn.getAttribute('data-link'),
+        size: 'M' // Default size for quick add
+      };
+      
+      // Add to cart
+      addToCart(product);
+    }
+  });
+
+  // Handle profile dropdown and navigation
+  document.addEventListener("click", function (e) {
+    // Handle logout
+    const logoutBtn = e.target.closest("#logout-btn");
+    if (logoutBtn) {
+      e.preventDefault();
+      if (window.Auth && typeof window.Auth.logoutUser === "function") {
         // Show logout success toast
-        const toast = document.createElement('div');
-        toast.className = 'position-fixed top-0 end-0 p-3';
-        toast.style.zIndex = '1100';
+        const toast = document.createElement("div");
+        toast.className = "position-fixed top-0 end-0 p-3";
+        toast.style.zIndex = "1100";
         toast.innerHTML = `
           <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header bg-success text-white">
@@ -288,32 +417,45 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
         `;
         document.body.appendChild(toast);
-        
+
         // Auto-remove toast after 3 seconds
         setTimeout(() => {
           toast.remove();
         }, 3000);
-        
+
         // Logout and redirect after a short delay to show the toast
         setTimeout(() => {
           window.Auth.logoutUser();
-          window.location.href = '/';
+          window.location.href = "/";
         }, 500);
       }
       return;
     }
-    
-    // Toggle profile dropdown
-    if (e.target.closest('#profile-dropdown')) {
+
+    // Handle profile link click
+    const profileLink = e.target.closest('.dropdown-item[href="/profile.html"]');
+    if (profileLink) {
       e.preventDefault();
-      const menu = document.getElementById('profile-menu');
+      window.location.href = "/profile.html";
+      return;
+    }
+
+    // Toggle profile dropdown
+    const profileDropdown = e.target.closest("#profile-dropdown");
+    if (profileDropdown) {
+      e.preventDefault();
+      const menu = document.getElementById("profile-menu");
       if (menu) {
-        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+        const isHidden = menu.style.display === "none" || !menu.style.display;
+        menu.style.display = isHidden ? "block" : "none";
       }
-    } else {
-      // Close dropdown when clicking outside
-      const menu = document.getElementById('profile-menu');
-      if (menu) menu.style.display = 'none';
+      return;
+    }
+
+    // Close dropdown when clicking outside
+    const menu = document.getElementById("profile-menu");
+    if (menu && !e.target.closest("#profile-menu") && !e.target.closest("#profile-dropdown")) {
+      menu.style.display = "none";
     }
   });
 
@@ -424,7 +566,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 1200);
     });
   })();
-});
+// });
 
 // Sample product data (id, title, price, imgSrc)
 const productData = [
@@ -545,7 +687,7 @@ function ensureLoggedIn() {
   // Check if user is logged in
   if (!window.Auth.isUserLoggedIn()) {
     // Only set redirect if we're not already on the login page
-    if (!window.location.pathname.endsWith('login.html')) {
+    if (!window.location.pathname.endsWith("login.html")) {
       sessionStorage.setItem("redirectAfterLogin", window.location.pathname);
     }
     window.location.href = "login.html";
@@ -555,7 +697,7 @@ function ensureLoggedIn() {
   // Check if profile is complete
   if (!window.Auth.hasCompleteProfile()) {
     // Only redirect to profile if we're not already there
-    if (!window.location.pathname.endsWith('profile.html')) {
+    if (!window.location.pathname.endsWith("profile.html")) {
       sessionStorage.setItem("redirectAfterLogin", window.location.pathname);
       window.location.href = "profile.html";
       return false;
@@ -570,7 +712,7 @@ function renderCartPage() {
   if (!el) return;
 
   // Check if we're already on the login page to prevent loops
-  if (window.location.pathname.endsWith('login.html')) {
+  if (window.location.pathname.endsWith("login.html")) {
     return;
   }
 
@@ -606,43 +748,52 @@ function renderCartPage() {
   }
 
   let subtotal = 0;
-  const cartItems = cart.map(item => {
-    const lineTotal = (item.price || 0) * (item.qty || 1);
-    subtotal += lineTotal;
-    
-    return `
-      <div class="card mb-3 cart-item" data-id="${item.id}">
-        <div class="row g-0">
-          <!-- Product Image -->
-          <div class="col-4 col-md-2">
-            <img src="${item.imgSrc || 'https://via.placeholder.com/150'}" 
-                 class="img-fluid rounded-start" 
-                 alt="${item.title}"
-                 style="height: 140px; object-fit: cover;">
-          </div>
-          
+  const cartItems = cart
+    .map((item) => {
+      const lineTotal = (item.price || 0) * (item.qty || 1);
+      subtotal += lineTotal;
+
+      return `
+        <div class="card mb-3 cart-item" data-id="${item.id}">
+             <div class="row g-0">
+               <!-- Product Image -->
+               <div class="col-4 col-md-2">
+                 <img src="${item.img || item.imgSrc || 'https://via.placeholder.com/150'}" 
+                      class="img-fluid rounded-start" 
+                       alt="${item.title || 'Product image'}" 
+                       style="height: 140px; object-fit: cover;">
+                </div>
+
           <!-- Product Details -->
           <div class="col-8 col-md-5">
             <div class="card-body h-100 d-flex flex-column">
               <div class="mb-2">
                 <h5 class="card-title mb-1">${item.title}</h5>
-                <p class="text-muted small mb-2">Size: ${item.size || 'One Size'}</p>
+                <p class="text-muted small mb-2">Size: ${
+                  item.size || "One Size"
+                }</p>
               </div>
               
               <!-- Quantity Selector -->
               <div class="d-flex align-items-center mb-2">
                 <span class="me-2 small">Qty:</span>
                 <div class="input-group input-group-sm" style="width: 120px;">
-                  <button class="btn btn-outline-secondary px-2 quantity-btn" data-action="decrease" data-id="${item.id}">-</button>
-                  <input type="number" class="form-control text-center cart-qty" 
-                         value="${item.qty}" min="1" max="10" 
-                         data-id="${item.id}">
-                  <button class="btn btn-outline-secondary px-2 quantity-btn" data-action="increase" data-id="${item.id}">+</button>
+                  <button class="btn btn-outline-secondary px-2 quantity-btn" data-action="decrease" data-id="${
+                    item.id
+                  }">-</button>
+                  <input type="number" class="form-control text-center cart-qty" value="${
+                    item.qty
+                  }" min="1" max="10" data-id="${item.id}">
+                  <button class="btn btn-outline-secondary px-2 quantity-btn" data-action="increase" data-id="${
+                    item.id
+                  }">+</button>
                 </div>
               </div>
               
               <div class="mt-auto">
-                <button class="btn btn-sm btn-outline-danger btn-remove" data-id="${item.id}">
+                <button class="btn btn-sm btn-outline-danger btn-remove" data-id="${
+                  item.id
+                }">
                   <i class="bi bi-trash"></i> Remove
                 </button>
               </div>
@@ -675,7 +826,8 @@ function renderCartPage() {
         </div>
       </div>
     `;
-  }).join('');
+    })
+    .join("");
 
   el.innerHTML = `
     <div class="row">
@@ -698,7 +850,10 @@ function renderCartPage() {
             <h5 class="card-title mb-4">Order Summary</h5>
             
             <div class="d-flex justify-content-between mb-2">
-              <span>Subtotal (${cart.reduce((sum, item) => sum + (item.qty || 1), 0)} items)</span>
+              <span>Subtotal (${cart.reduce(
+                (sum, item) => sum + (item.qty || 1),
+                0
+              )} items)</span>
               <span>₹${subtotal.toFixed(2)}</span>
             </div>
             
@@ -719,10 +874,8 @@ function renderCartPage() {
             </div>
             
             <div class="text-center mt-3">
-              <img src="https://www.logo.wine/a/logo/Visa_Inc./Visa_Inc.-Logo.wine.svg" 
-                   alt="Visa" style="height: 24px;" class="me-2">
-              <img src="https://www.logo.wine/a/logo/Mastercard/Mastercard-Logo.wine.svg" 
-                   alt="Mastercard" style="height: 24px;">
+              <img src="https://www.logo.wine/a/logo/Visa_Inc./Visa_Inc.-Logo.wine.svg" alt="Visa" style="height: 24px;" class="me-2">
+              <img src="https://www.logo.wine/a/logo/Mastercard/Mastercard-Logo.wine.svg" alt="Mastercard" style="height: 24px;">
             </div>
           </div>
         </div>
@@ -730,12 +883,75 @@ function renderCartPage() {
     </div>
   `;
 
-  // listeners
+  // Add event listeners for quantity buttons
+  el.querySelectorAll('.quantity-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const action = e.target.getAttribute('data-action');
+      const id = e.target.getAttribute('data-id');
+      const cart = getCart();
+      const item = cart.find(item => item.id === id);
+      
+      if (!item) return;
+      
+      if (action === 'increase' && item.qty < 10) {
+        item.qty += 1;
+      } else if (action === 'decrease' && item.qty > 1) {
+        item.qty -= 1;
+      }
+      
+      saveCart(cart);
+      renderCartPage();
+    });
+  });
+  
+  // Add event listeners for quantity inputs
+  el.querySelectorAll('.cart-qty').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const id = e.target.getAttribute('data-id');
+      let qty = parseInt(e.target.value, 10) || 1;
+      if (qty < 1) qty = 1;
+      if (qty > 10) qty = 10;
+      
+      const cart = getCart();
+      const item = cart.find(item => item.id === id);
+      if (item) {
+        item.qty = qty;
+        saveCart(cart);
+        renderCartPage();
+      }
+    });
+  });
+  
+  // Add event listeners for remove buttons
+  el.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const id = e.target.getAttribute('data-id') || e.target.closest('[data-id]')?.getAttribute('data-id');
+      if (!id) return;
+      
+      const cart = getCart().filter(item => item.id !== id);
+      saveCart(cart);
+      renderCartPage();
+    });
+  });
+      
+      // Update the input field immediately for better UX
+      const qtyInput = document.querySelector(`.cart-qty[data-id="${id}"]`);
+      if (qtyInput) {
+        qtyInput.value = item.qty;
+      }
+      
+      saveCart(cart);
+      renderCartPage();
+    };
+  
+  // listeners for direct quantity input
   el.querySelectorAll(".cart-qty").forEach((input) => {
     input.addEventListener("change", (e) => {
       const id = e.target.dataset.id;
       let qty = parseInt(e.target.value, 10);
       if (isNaN(qty) || qty < 1) qty = 1;
+      if (qty > 10) qty = 10; // Enforce max quantity
       const cart = getCart();
       const it = cart.find((x) => x.id === id);
       if (it) {
@@ -756,15 +972,185 @@ function renderCartPage() {
     });
   });
 
-  const checkoutBtn = document.getElementById("checkout-btn");
-  if (checkoutBtn) {
-    checkoutBtn.addEventListener("click", () => {
-      // Double check authentication and profile before checkout
-      if (!ensureLoggedIn()) {
+  // Function to format address for display
+  function formatAddress(profile) {
+    if (!profile || !profile.address) return 'No address saved. Please update your profile.';
+    
+    const { line1, line2, city, state, pincode } = profile.address;
+    let address = `<div><strong>${profile.name || 'User'}</strong></div>`;
+    address += `<div>${line1 || ''}</div>`;
+    if (line2) address += `<div>${line2}</div>`;
+    address += `<div>${city || ''}, ${state || ''} ${pincode || ''}</div>`;
+    if (profile.phone) address += `<div class="mt-1"><i class="bi bi-telephone"></i> ${profile.phone}</div>`;
+    return address;
+  }
+
+  // Show address confirmation modal
+  function showAddressConfirmation() {
+    try {
+      console.log('showAddressConfirmation called');
+      const profile = Auth.getUserProfile();
+      
+      // Check if profile has complete address
+      if (!profile || !profile.address || !profile.address.line1) {
+        console.log('No address found, redirecting to profile page');
+        window.location.href = 'profile.html?redirect=cart';
         return;
       }
 
-      if (!confirm("Proceed to place order with Cash on Delivery?")) return;
+      // Populate address display
+      const addressDisplay = document.getElementById('address-details');
+      if (!addressDisplay) {
+        console.error('Address display element not found');
+        return;
+      }
+      addressDisplay.innerHTML = formatAddress(profile);
+      
+      // Populate form fields for editing
+      if (profile.address) {
+        const setValue = (id, value) => {
+          const el = document.getElementById(id);
+          if (el) el.value = value || '';
+        };
+        
+        setValue('edit-address-line1', profile.address.line1);
+        setValue('edit-address-line2', profile.address.line2);
+        setValue('edit-city', profile.address.city);
+        setValue('edit-state', profile.address.state);
+        setValue('edit-pincode', profile.address.pincode);
+      }
+
+      // Show the modal using Bootstrap 5's modal
+      const modalEl = document.getElementById('addressModal');
+      if (!modalEl) {
+        console.error('Address modal element not found');
+        // Fallback to simple confirmation
+        if (confirm('Proceed to checkout with your saved address?')) {
+          processOrder();
+        }
+        return;
+      }
+      
+      // Try to show the modal using Bootstrap 5's modal
+      try {
+        // Check if Bootstrap is available
+        if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+          const modal = new bootstrap.Modal(modalEl);
+          modal.show();
+          console.log('Bootstrap modal shown successfully');
+        } else {
+          // Fallback to direct style manipulation
+          console.log('Bootstrap not available, using fallback');
+          modalEl.classList.add('show');
+          modalEl.style.display = 'block';
+          modalEl.setAttribute('aria-modal', 'true');
+          modalEl.setAttribute('role', 'dialog');
+          document.body.classList.add('modal-open');
+          
+          // Add backdrop
+          const backdrop = document.createElement('div');
+          backdrop.className = 'modal-backdrop fade show';
+          document.body.appendChild(backdrop);
+          
+          // Handle close button
+          const closeButtons = modalEl.querySelectorAll('[data-bs-dismiss="modal"]');
+          closeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+              modalEl.classList.remove('show');
+              modalEl.style.display = 'none';
+              document.body.classList.remove('modal-open');
+              const backdrop = document.querySelector('.modal-backdrop');
+              if (backdrop) backdrop.remove();
+            });
+          });
+        }
+      } catch (error) {
+        console.error('Error showing modal:', error);
+        // Fallback to simple confirmation
+        if (confirm('Proceed to checkout with your saved address?')) {
+          processOrder();
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error in showAddressConfirmation:', error);
+      // Final fallback to simple confirmation
+      if (confirm('Proceed to checkout with your saved address?')) {
+        processOrder();
+      }
+    }
+  }
+
+  // Initialize address modal event listeners
+  function initAddressModal() {
+    const modal = document.getElementById('addressModal');
+    if (!modal) return;
+
+    // Edit address button
+    document.getElementById('edit-address-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('address-display').classList.add('d-none');
+      document.getElementById('address-form').classList.remove('d-none');
+    });
+
+    // Cancel edit button
+    document.getElementById('cancel-edit-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.getElementById('address-display').classList.remove('d-none');
+      document.getElementById('address-form').classList.add('d-none');
+    });
+
+    // Save address form
+    document.getElementById('address-form')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      const profile = Auth.getUserProfile();
+      if (!profile) return;
+      
+      // Update address
+      profile.address = {
+        line1: document.getElementById('edit-address-line1').value.trim(),
+        line2: document.getElementById('edit-address-line2').value.trim(),
+        city: document.getElementById('edit-city').value.trim(),
+        state: document.getElementById('edit-state').value,
+        pincode: document.getElementById('edit-pincode').value.trim()
+      };
+      
+      // Save the updated profile
+      Auth.saveUserProfile(profile);
+      
+      // Update the displayed address
+      document.getElementById('address-details').innerHTML = formatAddress(profile);
+      
+      // Switch back to display mode
+      document.getElementById('address-display').classList.remove('d-none');
+      document.getElementById('address-form').classList.add('d-none');
+      
+      // Show success message
+      const successAlert = document.createElement('div');
+      successAlert.className = 'alert alert-success alert-dismissible fade show mt-3';
+      successAlert.innerHTML = `
+        <span>Address updated successfully!</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      `;
+      document.querySelector('.modal-body').prepend(successAlert);
+      
+      // Remove the alert after 3 seconds
+      setTimeout(() => {
+        successAlert.remove();
+      }, 3000);
+    });
+
+    // Proceed to payment button
+    document.getElementById('proceed-to-payment')?.addEventListener('click', () => {
+      modal.querySelector('.btn-close').click(); // Close the modal
+      processOrder();
+    });
+  }
+
+  // Process the order after address confirmation
+  function processOrder() {
+    if (!confirm("Proceed to place order with Cash on Delivery?")) return;
 
       // Get user profile for order details
       const userProfile = Auth.getUserProfile();
@@ -797,6 +1183,5 @@ function renderCartPage() {
                     <p class="mt-3"><a href="/" class="btn btn-primary">Continue Shopping</a></p>
                 </div>
             `;
-    });
-  }
-}
+    }
+  
